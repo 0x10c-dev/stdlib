@@ -1,0 +1,41 @@
+;#include "text-io.dasm"
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; puts (needs base screen routines)
+
+; writes a null-terminated string to the current
+; position.
+:puts
+  IFE [A], 0
+    SET PC, POP
+  SET PUSH, A
+  SET A, [A]
+  JSR putc
+  SET A, POP
+  ADD A, 1
+  SET PC, puts ; tail call
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; putsn (needs base screen routines)
+
+;; void putsn(char *src, char len)
+; writes a string of length n to the current
+; position. It is useful for printing a prefix of
+; a string or for pascal strings.
+:putsn
+  IFE B, 0
+    SET PC, POP
+  SET PUSH, J
+  SET PUSH, I
+  SET J, A
+  SET I, A
+  ADD I, B
+  :putsn_loop
+    SET A, [I]
+    JSR putc
+    ADD I, 1
+    IFN I, J
+      SET PC, putsn_loop
+  SET I, POP
+  SET J, POP
+  SET PC, POP
