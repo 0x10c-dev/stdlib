@@ -1,0 +1,28 @@
+; this test code will turn "FOO" into "F[OO]".
+; the first character may be a newline character
+; and should work as usual.
+:loop
+  JSR getc
+  JSR putc
+  JSR getline
+  SET X, A
+  SET Y, B
+  SET A, 0x805b
+  JSR rawputc
+:innerloop
+    IFE Y, 0
+      SET PC, innerloopend
+    SET A, [X]
+    JSR putc
+    ADD X, 1
+    SUB Y, 1
+    SET PC, innerloop
+:innerloopend
+  SET A, 0x805d
+  JSR rawputc
+  SET A, 10
+  JSR putc
+  SET PC, loop
+
+;#include "text-io.dasm"
+

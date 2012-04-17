@@ -5,73 +5,6 @@
 ;; declares: newline, scroll, clear, putc, rawputc,
 ;;           getc, fillbuffer, getline
 
-; this test code will turn "FOO" into "F[OO]".
-; the first character may be a newline character
-; and should work as usual.
-:loop
-  JSR getc
-  JSR putc
-  JSR getline
-  SET X, A
-  SET Y, B
-  SET A, 0x805b
-  JSR rawputc
-:innerloop
-    IFE Y, 0
-      SET PC, innerloopend
-    SET A, [X]
-    JSR putc
-    ADD X, 1
-    SUB Y, 1
-    SET PC, innerloop
-:innerloopend
-  SET A, 0x805d
-  JSR rawputc
-  SET A, 10
-  JSR putc
-  SET PC, loop
-
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; puts (needs base screen routines)
-
-; writes a null-terminated string to the current
-; position.
-:puts
-  IFE [A], 0
-    SET PC, POP
-  SET PUSH, A
-  SET A, [A]
-  JSR putc
-  SET A, POP
-  ADD A, 1
-  SET PC, puts ; tail call
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; putsn (needs base screen routines)
-
-;; void putsn(char *src, char len)
-; writes a string of length n to the current
-; position. It is useful for printing a prefix of
-; a string or for pascal strings.
-:putsn
-  IFE B, 0
-    SET PC, POP
-  SET PUSH, J
-  SET PUSH, I
-  SET J, A
-  SET I, A
-  ADD I, B
-  :putsn_loop
-    SET A, [I]
-    JSR putc
-    ADD I, 1
-    IFN I, J
-      SET PC, putsn_loop
-  SET I, POP
-  SET J, POP
-  SET PC, POP
-
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; base screen routines
 
@@ -153,8 +86,8 @@
   BOR A, 0xf000
   ; *falls through*
 
-; same as putc but does not process newlines and
-; colored characters.
+; same as putc but does not process newlines.
+; also does not strip color and blink bits.
 ;
 ; receives: A (word to be written)
 ; clobbers: A, C
@@ -325,3 +258,4 @@
   SUB B, 1
   ADD A, inputbuf
   SET PC, POP
+
