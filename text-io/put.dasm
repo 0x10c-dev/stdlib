@@ -5,6 +5,8 @@
 
 ; writes a null-terminated string to the current
 ; position.
+; NOTE: In the current version it does *not* print
+;       a trailing newline.
 :puts
   IFE [A], 0
     SET PC, POP
@@ -22,6 +24,8 @@
 ; writes a string of length n to the current
 ; position. It is useful for printing a prefix of
 ; a string or for pascal strings.
+; NOTE: In the current version it does *not* print
+;       a trailing newline.
 :putsn
   IFE B, 0
     SET PC, POP
