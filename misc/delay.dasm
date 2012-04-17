@@ -1,0 +1,53 @@
+;; Variable Delays.
+;; by Kang Seonghoon (lifthrasiir, @senokay)
+;; licensed under WTFPL. feel free to use.
+;;
+;; declares: delay
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; delay
+
+; burns exactly A cycles while doing nothing.
+; (not counting a JSR call to this function)
+;
+; this function works correctly only for A >= 11.
+; If 7 <= A < 11 the function does work but may
+; delay longer than ordered.
+; If A < 7, it will delay much, much longer than
+; ordered (i.e. ~0x10000 cycles) due to overflow.
+;
+; cycles: A when A >= 11
+; receives: A (# of cycles to delay)
+; clobbers: A
+:delay
+  SUB A, 6      ; 2 cycles
+  IFG A, 10     ; 2 cycles
+                ; or 3 cycles when skipping
+    SUB PC, 3   ; 2 cycles, jumps to delay
+  ; this loop ensures that exactly (A+1)
+  ; cycles are left and A is bounded.
+
+  ; let A* be A at this point.
+  ; 5 <= A* <= 10
+  SUB A, 3      ; 2 cycles
+  ; A = A* - 3
+  XOR A, 7      ; 1 cycle
+  ; A = 7 - (A* - 3) = 10 - A*
+  ADD PC, A     ; 2 cycles
+  ; since we consumed 5 cycles already,
+  ; we have (A* - 4) cycles left. we have to
+  ; do "SET PC, POP" anyway, so we do (A* - 5)
+  ; nops here by skipping:
+  ;   5 - (A* - 5) = 10 - A*
+  ; instructions.
+  SET 0, 0
+  SET 0, 0
+  SET 0, 0
+  SET 0, 0
+  SET 0, 0
+  SET PC, POP
+  ; these ones are safety guards for wrong
+  ; inputs.
+  SET PC, POP
+  SET PC, POP
+
