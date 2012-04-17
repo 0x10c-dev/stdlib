@@ -1,0 +1,56 @@
+;; Memory helpers
+;; by Michael Gerhaeuser (migerh, @migerh)
+;; licensed under WTFPL. feel free to use.
+;;
+;; declares: memmove
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; memmove
+
+; moves memory
+;
+;  A: source
+;  B: destination
+;  C: length
+;
+; cycles: ? (depends on C)
+; receives: A, B, C
+; clobbers: A, B, C
+; returns:
+:memmove
+  ; src and dst are the same, nothing to do
+  IFE A, B
+    SET PC, POP
+    
+  ; move nothing
+  ; thanks to Fisherman/reynir for pointing that one out
+  IFE C, 0
+    SET PC, POP
+  
+  ; default direction is forward
+  SET PUSH, 0x1
+  
+  ; determine the direction
+  IFG A, B
+    SET PC, memmove_loop
+    
+  ; dst lies before the src, copy backwards
+  SET [SP], 0xFFFF
+  ; this is required to start at the right offset
+  SUB C, 1
+  ADD A, C
+  ADD B, C
+  ; correct the length
+  ADD C, 1
+
+:memmove_loop
+  SET [B], [A]
+  ADD A, [SP]
+  ADD B, [SP]
+  SUB C, 1
+  IFN C, 0
+    SET PC, memmove_loop
+  ADD SP, 1
+  SET PC, POP
+
+
