@@ -4,12 +4,10 @@
 ;; puts (needs base screen routines)
 
 ; writes a null-terminated string to the current
-; position.
-; NOTE: In the current version it does *not* print
-;       a trailing newline.
+; position. Writes a trailing newline.
 :puts
   IFE [A], 0
-    SET PC, POP
+    SET PC, newline ;; tail call
   SET PUSH, A
   SET A, [A]
   JSR putc
@@ -22,13 +20,12 @@
 
 ;; void putsn(char *src, char len)
 ; writes a string of length n to the current
-; position. It is useful for printing a prefix of
-; a string or for pascal strings.
-; NOTE: In the current version it does *not* print
-;       a trailing newline.
+; position. Writes a trailing newline. It is
+; useful for printing a prefix of a string or for
+; pascal strings.
 :putsn
   IFE B, 0
-    SET PC, POP
+    SET PC, newline ;; tail call
   SET PUSH, J
   SET PUSH, I
   SET J, A
@@ -42,4 +39,4 @@
       SET PC, putsn_loop
   SET I, POP
   SET J, POP
-  SET PC, POP
+  SET PC, newline ;; tail call
