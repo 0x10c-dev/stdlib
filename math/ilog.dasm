@@ -1,0 +1,98 @@
+;; Integer Logarithms for Various Bases
+;; by Kang Seonghoon (lifthrasiir, @senokay)
+;; licensed under WTFPL. feel free to use.
+;;
+;; declares: ilog2, ilog10, ilog10s
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; ilog2
+
+; calculates ilog2(A) where:
+;   ilog2(x) = floor(log_2(x)) if x > 0
+;            = 0               if x = 0.
+;
+; cycles: 25
+; receives: A
+; clobbers: A, B
+; returns: A
+:ilog2
+  SET B, A      ; A = A | (A<<1)
+  SHR B, 1
+  BOR A, B
+  SET B, A      ; A = A | (A<<2)
+  SHR B, 2
+  BOR A, B
+  SET B, A      ; A = A | (A<<4)
+  SHR B, 4
+  BOR A, B
+  SET B, A      ; A = A | (A<<8)
+  SHR B, 8
+  BOR A, B
+  MUL A, 0xf2d  ; A = ilog2_debruijn[(A*0xf2d)>>12]
+  SHR A, 12
+  SET A, [A+ilog2_debruijn]
+  SET PC, POP
+:ilog2_debruijn
+  DAT 0, 7, 1, 13, 8, 10, 2, 14
+  DAT 6, 12, 9, 5, 11, 4, 3, 15
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; ilog10 (in two variants)
+
+; calculates ilog10(A) where:
+;   ilog10(x) = floor(log_10(x)) if x > 0
+;             = 0                if x = 0.
+;
+; takes 13 cycles when     0 <= A < 100,
+;       16 cycles when   100 <= A < 10000,
+;        8 cycles when 10000 <= A < 65536.
+; use this if your input is uniformly distributed.
+;
+; cycles: <= 16, 9.2 average
+; receives: A
+; clobbers: A
+; returns: A
+:ilog10
+  IFG A, 9999
+    ADD PC, 7    ; jumps to ilog10_above9999
+  IFG A, 99
+    ADD PC, 6    ; jumps to ilog10_above99
+  ADD 0xfff6, A  ; 0xfff6 = 0x10000 - 10
+  SET A, O       ; now O = (A >= 10)
+  SET PC, POP
+:ilog10_above9999
+  SET A, 4
+  SET PC, POP
+:ilog10_above99
+  ADD 0xfc18, A  ; 0xfc18 = 0x10000 - 1000
+  SET A, 2       ; now O = (A >= 1000)
+  BOR A, O
+  SET PC, POP
+
+; same as ilog10 but optimized for smaller inputs.
+;
+; takes 10 cycles when     0 <= A < 100,
+;       16 cycles when   100 <= A < 10000,
+;       11 cycles when 10000 <= A < 65536.
+;
+; cycles: <= 16, 11.8 average
+; receives: A
+; clobbers: A
+; returns: A
+:ilog10s
+  IFG 100, A
+    ADD PC, 5    ; jumps to ilog10_below100
+  IFG 10000, A
+    ADD PC, 6    ; jumps to ilog10_below10000
+  SET A, 4
+  SET PC, POP
+:ilog10_below100
+  ADD 0xfff6, A  ; 0xfff6 = 0x10000 - 10
+  SET A, O       ; now O = (A >= 10)
+  SET PC, POP
+:ilog10_below10000
+  ADD 0xfc18, A  ; 0xfc18 = 0x10000 - 1000
+  SET A, 2       ; now O = (A >= 1000)
+  BOR A, O
+  SET PC, POP
+
