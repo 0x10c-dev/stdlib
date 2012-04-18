@@ -1,0 +1,19 @@
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; rand
+
+; clobbers ABC, returns result in A
+; 16-bit MWC RNG
+; https://groups.google.com/forum/?fromgroups#!topic/sci.stat.math/p7aLW3TsJys
+; k=30903*(k&65535)+(k>>16); return(k&65535); 
+:rand
+  SET A, _randstate0
+  SET B, _randstate1
+  MUL [A], 30903
+  SET C, O
+  ADD [A], [B]
+  ADD C, O
+  ADD [B], C
+  SET A, [A]
+  SET PC, POP
+:_randstate0 dat 0x1234
+:_randstate1 dat 0x5678
