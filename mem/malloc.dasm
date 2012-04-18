@@ -5,12 +5,14 @@
 ;; http://u.jdiez.me/0x42c/kernel.html#x01e-kern-malloc
 ;; http://u.jdiez.me/0x42c/kernel.html#x022-kern-free
 ;; declares: malloc, free
-;; NOTE: There are a few references to undeclared labels. FIXME jdiez
+
+:mem_start dat 0x6000 ; adjust these to your liking.
+:mem_end dat 0x7fff
 
 ; void* malloc(int owner, int words)
 :malloc
     set push, i
-    set i, [mempointer]
+    set i, [mem_start]
     
     :malloc_loop
         ife [i], 0xffff
@@ -22,7 +24,7 @@
         
         set pc, malloc_loop
     :malloc_found_free
-        ife i, [userspacemem] ; beginning
+        ife i, [mem_start] ; beginning
             set pc, malloc_allocate
         
         add i, 1
@@ -71,7 +73,7 @@
         
         add i, 1
         set a, i
-        set b, [userspaceend]
+        set b, [mem_end]
         jsr set_initial_blocks
         set pc, malloc_end
            
@@ -98,7 +100,7 @@
     :free_check_backwards
         set a, peek
         sub a, 1
-        ifg a, [userspacemem]
+        ifg a, [mem_start]
             set pc free_check_backwards_continue
             
         set pc, free_end
@@ -127,7 +129,7 @@
         set c, b ; previous block length
         set [a], 0x0
         add a, b
-        ifn a, [userspaceend]
+        ifn a, [mem_end]
             add a, 1 ; footer of this block
         set b, pop
         set push, b ; we'll need it at the end
@@ -143,4 +145,17 @@
     :free_end
         set a, pop
         set pc, pop
+        
+; void set_initial_blocks(void memstart, void memend)    
+:set_initial_blocks
+    set push, b
+    set [a], 0xffff ; owner of free mem
+    add a, 1
+    sub b, a
+    set [a], b      ; space available
+    set b, pop
+    sub a, 1
+    set [b], a
+    
+    set pc, pop
 
