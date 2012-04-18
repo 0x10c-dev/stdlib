@@ -3,7 +3,9 @@
 ;; licensed under MIT.
 ;;
 ;; http://u.jdiez.me/0x42c/kernel.html#x01e-kern-malloc
-;; declares: malloc
+;; http://u.jdiez.me/0x42c/kernel.html#x022-kern-free
+;; declares: malloc, free
+;; NOTE: There are a few references to undeclared labels. FIXME jdiez
 
 ; void* malloc(int owner, int words)
 :malloc
@@ -78,3 +80,67 @@
         add a, 2 ; real start of memory
         set i, pop
         set pc, pop
+
+; void free(void* addr) 
+:free
+    sub a, 2 ; user gives the first allocated word, header is two words back  
+    set [a], 0xffff ; free memory
+    set push, a
+    
+    :free_check_forward
+        add a, 1
+        set b, [a]
+        add a, b
+        add a, 2 ; next header
+        ife [a], 0xffff
+            set pc, free_merge_forward
+    
+    :free_check_backwards
+        set a, peek
+        sub a, 1
+        ifg a, [userspacemem]
+            set pc free_check_backwards_continue
+            
+        set pc, free_end
+    
+    :free_check_backwards_continue
+        ife [a], 0x0 ; if previous footer is empty
+            set pc, free_end
+        
+        set b, [a]
+        set a, b
+        ifn [a], 0xffff
+            set pc, free_end
+            
+        set peek, a ; the previous push is unnecesary
+        add a, 1
+        set b, [a]
+        add a, b
+        add a, 2 
+                          
+        set pc, free_merge_forward ; no need to check since we already know there's a blob of free memory there
+        
+    :free_merge_forward
+        set [a], 0x0
+        add a, 1
+        set b, [a]
+        set c, b ; previous block length
+        set [a], 0x0
+        add a, b
+        ifn a, [userspaceend]
+            add a, 1 ; footer of this block
+        set b, pop
+        set push, b ; we'll need it at the end
+        set [a], b
+        set a, b
+        add a, 1
+        set b, [a]
+        add b, c
+        add b, 3 ; considering overhead
+        set [a], b
+        set pc, free_end
+    
+    :free_end
+        set a, pop
+        set pc, pop
+
