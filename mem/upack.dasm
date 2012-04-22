@@ -1,0 +1,29 @@
+;Unpacks text / characters / combined 8 bit values. Instead of letting color waste the high byte of each character,
+;use it to store another character.
+;This unpacks the high byte, and then the low byte into 2 words.
+;This essentially allows twice the amount of stored text per amount of RAM
+;Color is blank 0's (in the high bit), and must be added after unpacking.
+;Register a is the start of the packed
+;data. Register b is the end of the
+;packed data. Register c is the start
+;of where you want to unpack to
+;Copyright 2012, by Hotrootsoup, licensed unter the GNU Public License.
+;http://www.gnu.org/licenses/gpl.txt
+
+:upack
+    set PUSH, [a]
+    shr PEEK, 8
+    set [c], POP
+    
+    add c, 1
+    
+    set PUSH, [a]
+    and PEEK, 0x00FF
+    set [c], POP
+    
+    ife a, b
+        set PC, POP
+    
+    add c, 1
+    add a, 1
+    set PC, upack
