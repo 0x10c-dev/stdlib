@@ -1,0 +1,169 @@
+;; 2x2 Black & White Pixel Primitives
+;; by Kang Seonghoon (lifthrasiir, @senokay)
+;; licensed under WTFPL. feel free to use.
+;;
+;; declares: p2x2init, p2x2toggle, p2x2set,
+;;           p2x2reset
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; 2x2 B&W pixel display
+;;
+;; these functions operate on the raw screen buffer
+;; with specially crafted fonts. this allows the
+;; full pixel-based display at a lower resolution
+;; (64 by 48); you should call p2x2init before
+;; using other p2x2* functions.
+;;
+;; these functions assume that every pixel has
+;; black bg and white fg, or vice versa. you *can*
+;; set colored pixels manually but these pixels
+;; won't be properly processed by p2x2* functions.
+
+; initializes all 128 available fonts for 2x2 pixel
+; display and clears the screen. the resulting
+; display has 64 columns and 48 rows.
+;
+; given the character number gfedcba in binary,
+; the corresponding font will be set as follows:
+;
+;   aabb
+;   aabb
+;   ccdd
+;   ccdd
+;   eeff
+;   eeff
+;   gg00 <- this one is redundant; the eighth
+;   gg00    pixel is set by swapping fg and bg.
+;
+; clobbers: A, B
+; cycles: <= 5058
+:p2x2init
+  SET A, 0x8000
+:p2x2init_clear
+    SET [A], 0xf000
+    SET [A+1], 0xf000
+    SET [A+2], 0xf000
+    SET [A+3], 0xf000
+    ADD A, 4
+    IFG 0x8180, A
+      SET PC, p2x2init_clear
+  SET A, 0
+:p2x2init_sprites
+    ; given A = gfedcba0 in binary,
+    ; [A+0x8180] should be ddccbbaaddccbbaa, and
+    ; [A+0x8181] should be 00ggffee00ggffee.
+    SET B, A
+    SHR B, 1
+    AND B, 0x55     ; 01010101 in binary
+    MUL B, 0x303    ; 0000001100000011 in binary
+    SET [A+0x8180], B
+    SET B, A
+    SHR B, 2
+    AND B, 0x15
+    MUL B, 0x303
+    SET [A+0x8181], B
+    ADD A, 2
+    IFG 0x100, A
+      SET PC, p2x2init_sprites
+  SET PC, POP
+
+; shift tables. as you can see, the eighth entry is
+; sort of irregularity which would be very slow if
+; calculated directly.
+:p2x2shifttab
+  DAT 0x0001, 0x0002, 0x0004, 0x0008
+  DAT 0x0010, 0x0020, 0x0040, 0xff7f
+:p2x2invshifttab
+  DAT 0xfffe, 0xfffd, 0xfffb, 0xfff7
+  DAT 0xffef, 0xffdf, 0xffbf, 0xffff
+
+; toggles one pixel. x coordinate should be in
+; [0,63], and y coordinate should be in [0,47].
+;
+; this function is faster than p2x2set or p2x2reset
+; as it does not have to take branch. use this if
+; you know you always toggle given pixel.
+;
+; receives: A (x coordinate), B (y coordinate)
+; clobbers: A, B, C
+; cycles: 17
+:p2x2toggle
+  ; input: x = aaaaab, y = ccccdd
+  ; output: offset = ccccaaaaa, mask = 1 << ddb
+  SHR B, 2      ; B = cccc, O = dd00..0000
+  SET C, O
+  SHR C, 13     ; C = dd0
+  SHL B, 5      ; B = cccc00000
+  SHL A, 15     ; A = b000..0000, O = aaaaa
+  BOR B, O      ; B = ccccaaaaa
+  SHR A, 15     ; A = b
+  BOR C, A      ; C = ddb
+:p2x2toggle_invert
+  ; used by p2x2set below
+  XOR [B+0x8000], [C+p2x2shifttab]
+  SET PC, POP
+
+; sets one pixel. arguments are same as p2x2toggle.
+; this function is slightly slower than p2x2set but
+; will work for any case.
+;
+; note that pixel access is not uniform: every
+; eighth pixel (i.e. x mod 2 = 1 and y mod 4 = 3)
+; will take slightly more cycles.
+;
+; receives: A (x coordinate), B (y coordinate)
+; clobbers: A, B, C
+; cycles: <= 22 if the pixel is already set,
+;         <= 24.5 amortized (28 max) if unset.
+:p2x2set
+  ; same as p2x2toggle
+  SHR B, 2
+  SET C, O
+  SHR C, 13
+  SHL B, 5
+  SHL A, 15
+  BOR B, O
+  SHR A, 15
+  BOR C, A
+  ; if the foreground is bright, then we set the
+  ; corresponding bit to turn given pixel on.
+  ; otherwise we should reset the bit.
+  ;
+  ; for the eighth pixel (C=7), the bright
+  ; background means the pixel set. otherwise we
+  ; don't have to do anything at all. that's why
+  ; [p2xinvshifttab+7] is set to zero.
+  IFB [B+0x8000], 0x8000
+    SET PC, p2x2set_bright
+  AND [B+0x8000], [C+p2x2invshifttab]
+  SET PC, POP
+:p2x2set_bright
+  ; used by p2x2reset below
+  IFE C, 7
+    SET PC, p2x2toggle_invert
+  BOR [B+0x8000], [C+p2x2shifttab]
+  SET PC, POP
+
+; unsets one pixel. see p2x2set for details.
+;
+; receives: A (x coordinate), B (y coordinate)
+; clobbers: A, B, C
+; cycles: <= 22 if the pixel is already unset,
+;         <= 24.5 amortized (28 max) if set.
+:p2x2reset
+  ; same as p2x2toggle
+  SHR B, 2
+  SET C, O
+  SHR C, 13
+  SHL B, 5
+  SHL A, 15
+  BOR B, O
+  SHR A, 15
+  BOR C, A
+  ; in this case we check for the background
+  ; instead of the foreground.
+  IFB [B+0x8000], 0x0800
+    SET PC, p2x2set_bright
+  AND [B+0x8000], [C+p2x2invshifttab]
+  SET PC, POP
+
