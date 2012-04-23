@@ -9,6 +9,12 @@
 :mem_start dat 0x6000 ; adjust these to your liking.
 :mem_end dat 0x7fff
 
+:alloc_init
+    set a, [mem_start]
+    set b, [mem_end]
+    jsr set_initial_blocks
+    set pc, pop
+
 ; void* malloc(int owner, int words)
 :malloc
     set push, i
